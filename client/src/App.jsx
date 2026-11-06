@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 
+import SiteLayout from './components/layout/SiteLayout'
+
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
@@ -19,16 +21,21 @@ import ReviewQueue from './pages/creator/ReviewQueue'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      {/* Pages with TopBar + Navbar + Footer */}
+      <Route element={<SiteLayout />}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/creators" element={<Marketplace />} />
+        <Route path="/creators/:id" element={<CreatorProfile />} />
+        <Route path="/book/:tierId" element={<Booking />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/receipt/:bookingId" element={<Receipt />} />
+      </Route>
+
+      {/* Auth pages (full-screen design later) */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      <Route path="/creators" element={<Marketplace />} />
-      <Route path="/creators/:id" element={<CreatorProfile />} />
-      <Route path="/book/:tierId" element={<Booking />} />
-      <Route path="/my-bookings" element={<MyBookings />} />
-      <Route path="/receipt/:bookingId" element={<Receipt />} />
-
+      {/* Creator side (DashboardLayout comes later) */}
       <Route path="/creator/dashboard" element={<Dashboard />} />
       <Route path="/creator/profile" element={<Profile />} />
       <Route path="/creator/tiers" element={<Tiers />} />
