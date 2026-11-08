@@ -62,7 +62,15 @@ export function AuthProvider({ children }) {
       return { ok: false, error: 'An account with this email already exists.' }
     }
 
-    const account = { id: Date.now(), name: name.trim(), email: email.trim(), password, role }
+    const id = Date.now()
+    const account = {
+      id,
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      role,
+      ...(role === 'creator' ? { creatorId: `creator-${id}` } : { sponsorId: `sponsor-${id}` }),
+    }
     localStorage.setItem(USERS_KEY, JSON.stringify([...users, account]))
     return { ok: true, user: startSession(account) }
   }

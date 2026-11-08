@@ -21,9 +21,11 @@
   --font-sans: "Barlow", sans-serif;
 }
 
-body { @apply bg-paper text-ink font-sans; }
-h1, h2, h3 { @apply font-heading uppercase font-bold tracking-wide; }
-html { scroll-behavior: smooth; }
+@layer base {
+  body { @apply bg-paper text-ink font-sans; }
+  h1, h2, h3 { @apply font-heading uppercase font-bold tracking-wide; }
+  html { scroll-behavior: smooth; }
+}
 
 .outline-fill {
   color: transparent;
@@ -47,4 +49,16 @@ html { scroll-behavior: smooth; }
 .hatch {
   height: 14px;
   background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,0.25) 6px 8px);
+}
+
+.page-fade { animation: page-fade 0.5s ease both; }
+@keyframes page-fade {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.slide-down { animation: slide-down 0.25s ease both; }
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
 }

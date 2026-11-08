@@ -24,7 +24,6 @@ export default function ReviewActions({
   const [modalType, setModalType] = useState(null) // 'revision' | 'reject' | null
   const [feedbackNote, setFeedbackNote] = useState('')
   const [noteError, setNoteError] = useState('')
-
   if (!submission) return null
 
   const isPending = submission.status === 'pending'
