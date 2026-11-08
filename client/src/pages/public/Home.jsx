@@ -1,32 +1,36 @@
-import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import Reveal from '../../components/ui/Reveal'
 import SectionTitle from '../../components/ui/SectionTitle'
+import HowItWorks from '../../components/sections/HowItWorks'
+import AdFormats from '../../components/sections/AdFormats'
+import { useAuth } from '../../context/AuthContext'
+import { mockCreators } from '../../data/mockCreators'
+import { fromPrice } from '../../data/mockTiers'
 
 const img = (id, w = 800) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=70`
 
-const steps = [
-  { n: '01', title: 'Setup & Tiers', text: 'Creators build a media profile and set ad tiers with price, word limit and image size.', img: img('photo-1498050108023-c5249f4df085') },
-  { n: '02', title: 'Book & Checkout', text: 'Sponsors pick an open date, upload their creative and pay with sandbox checkout.', img: img('photo-1522071820081-009f0129c71c') },
-  { n: '03', title: 'Review Queue', text: 'Creators approve, reject or request revisions on every submission.', img: img('photo-1488190211105-8b0e65b80b4e') },
-  { n: '04', title: 'Fulfilment', text: 'Slots lock automatically, receipts are issued and clicks are tracked.', img: img('photo-1551288049-bebda4e38f71') },
-]
+const actionsByRole = {
+  guest: [
+    { to: '/creators', label: 'Browse Creators' },
+    { to: '/register', label: 'Join as Creator' },
+  ],
+  sponsor: [
+    { to: '/creators', label: 'Browse Creators' },
+    { to: '/my-bookings', label: 'View Bookings' },
+  ],
+  creator: [
+    { to: '/creator/dashboard', label: 'Open Dashboard' },
+    { to: '/creator/tiers', label: 'Manage Tiers' },
+  ],
+}
 
-const creators = [
-  { id: 1, name: 'The Daily Byte', type: 'Newsletter', price: 'From $120', img: img('photo-1488190211105-8b0e65b80b4e') },
-  { id: 2, name: 'Code & Coffee', type: 'Podcast', price: 'From $200', img: img('photo-1478737270239-2f02b77fc618') },
-  { id: 3, name: 'OpenKit', type: 'Open Source', price: 'From $80', img: img('photo-1498050108023-c5249f4df085') },
-  { id: 4, name: 'Startup Weekly', type: 'Newsletter', price: 'From $150', img: img('photo-1522071820081-009f0129c71c') },
-  { id: 5, name: 'Dev Talks', type: 'Podcast', price: 'From $180', img: img('photo-1590602847861-f357a9332bbc') },
-  { id: 6, name: 'NodePulse', type: 'Open Source', price: 'From $60', img: img('photo-1555066931-4365d14bab8c') },
-]
-
-const adTiers = [
-  { name: 'Classified', price: '$50', list: ['50 word limit', 'Text and link only', 'Great for launches'] },
-  { name: 'Featured', price: '$150', list: ['120 word limit', '600x300 image', 'Top-of-issue position'], hot: true },
-  { name: 'Headline', price: '$300', list: ['200 word limit', '1200x600 banner', 'Exclusive slot'] },
-]
+const ctaByRole = {
+  guest: { title: 'Ready to Fill Your Next Slot?', text: 'Create a free account in minutes, or find the perfect audience for your next campaign.', to: '/register', label: 'Sign Up' },
+  sponsor: { title: 'Find Your Next Audience', text: 'Pick a creator, choose an open date and submit your ad.', to: '/creators', label: 'Browse Creators' },
+  creator: { title: 'Keep Your Calendar Full', text: 'Open more dates and let sponsors book them directly.', to: '/creator/availability', label: 'Open Calendar' },
+}
 
 const reviews = [
   { text: 'I replaced three agency emails with one booking link. Sponsors pick a date, pay, and I just review the copy.', name: 'Megan Carter', role: 'Writer, The Daily Byte' },
@@ -41,15 +45,13 @@ const posts = [
 
 const stats = [['120+', 'Creators'], ['860', 'Slots Booked'], ['98%', 'On-time Delivery']]
 
-function ReadMore({ to = '/creators' }) {
-  return (
-    <Link to={to} className="inline-flex items-center gap-2 text-sm font-semibold text-navy-950 hover:text-brand-500 transition">
-      Read More <span className="text-brand-500 text-lg leading-none">+</span>
-    </Link>
-  )
-}
+const primary = 'bg-brand-600 hover:bg-brand-500 text-white font-heading uppercase tracking-wider text-lg px-8 py-4 transition'
+const outline = 'border-2 border-white/70 hover:bg-white hover:text-navy-950 text-white font-heading uppercase tracking-wider text-lg px-8 py-4 transition'
 
 function Hero() {
+  const { user, role } = useAuth()
+  const [first, second] = actionsByRole[role] || actionsByRole.guest
+
   return (
     <section className="relative min-h-[85vh] flex items-center bg-navy-950 overflow-hidden">
       <img
@@ -61,7 +63,8 @@ function Hero() {
 
       <div className="relative mx-auto max-w-7xl w-full px-6 py-24">
         <p className="flex items-center gap-3 text-white font-heading uppercase tracking-widest text-sm mb-4">
-          <span className="w-10 h-0.5 bg-brand-500" /> Direct Sponsorship Portal
+          <span className="w-10 h-0.5 bg-brand-500" />
+          {user ? `Welcome back, ${user.name.split(' ')[0]}` : 'Direct Sponsorship Portal'}
         </p>
 
         <h1 className="font-extrabold leading-[0.9] text-7xl md:text-9xl">
@@ -74,44 +77,17 @@ function Hero() {
         </p>
 
         <div className="mt-10 flex flex-wrap gap-4">
-          <Link to="/creators" className="bg-brand-600 hover:bg-brand-500 text-white font-heading uppercase tracking-wider text-lg px-8 py-4 transition">
-            Browse Creators
-          </Link>
-          <Link to="/register" className="border-2 border-white/70 hover:bg-white hover:text-navy-950 text-white font-heading uppercase tracking-wider text-lg px-8 py-4 transition">
-            Become a Creator
-          </Link>
+          <Link to={first.to} className={primary}>{first.label}</Link>
+          <Link to={second.to} className={outline}>{second.label}</Link>
         </div>
       </div>
     </section>
   )
 }
 
-function HowItWorks() {
-  return (
-    <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-24 scroll-mt-24">
-      <SectionTitle ghost="Process" eyebrow="4 simple stages" title="How It Works" />
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((s, i) => (
-          <Reveal key={s.n} delay={i * 120}>
-            <article className="group bg-mist h-full border-b-4 border-brand-500/30 hover:border-brand-500 transition">
-              <div className="overflow-hidden">
-                <img src={s.img} alt={s.title} className="h-44 w-full object-cover group-hover:scale-105 transition duration-500" />
-              </div>
-              <div className="p-5">
-                <span className="font-heading text-brand-500 text-xl">{s.n}</span>
-                <h3 className="text-2xl text-navy-950 mt-1">{s.title}</h3>
-                <p className="text-muted text-sm mt-2 mb-4">{s.text}</p>
-                <ReadMore to="/register" />
-              </div>
-            </article>
-          </Reveal>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function About() {
+  const { user } = useAuth()
+
   return (
     <section className="bg-mist">
       <div className="mx-auto max-w-7xl px-6 py-24 grid gap-12 lg:grid-cols-2 items-center">
@@ -135,9 +111,11 @@ function About() {
               </li>
             ))}
           </ul>
-          <Link to="/register" className="inline-block bg-brand-600 hover:bg-brand-500 text-white font-heading uppercase tracking-wider px-7 py-3 transition">
-            Join Now
-          </Link>
+          {!user && (
+            <Link to="/register" className="inline-block bg-brand-600 hover:bg-brand-500 text-white font-heading uppercase tracking-wider px-7 py-3 transition">
+              Join Now
+            </Link>
+          )}
         </Reveal>
 
         <Reveal delay={150} className="relative">
@@ -152,10 +130,10 @@ function About() {
   )
 }
 
-function Creators() {
+function TopCreators() {
   const [filter, setFilter] = useState('All')
   const types = ['All', 'Newsletter', 'Podcast', 'Open Source']
-  const shown = filter === 'All' ? creators : creators.filter((c) => c.type === filter)
+  const shown = filter === 'All' ? mockCreators : mockCreators.filter((c) => c.type === filter)
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-24">
@@ -186,28 +164,35 @@ function Creators() {
               <div className="p-5">
                 <h3 className="text-2xl text-navy-950">{c.name}</h3>
                 <p className="text-sm text-revision mt-1">
-                  {c.type} · <span className="text-muted">{c.price}</span>
+                  {c.type} · <span className="text-muted">From ${fromPrice(c.id)}</span>
                 </p>
               </div>
             </Link>
           </Reveal>
         ))}
       </div>
+
+      <div className="mt-10 text-center">
+        <Link to="/creators" className="font-heading uppercase tracking-wider text-brand-500 hover:underline">
+          See all creators →
+        </Link>
+      </div>
     </section>
   )
 }
 
 function CtaStats() {
+  const { role } = useAuth()
+  const cta = ctaByRole[role] || ctaByRole.guest
+
   return (
     <section className="relative bg-navy-800">
       <div className="mx-auto max-w-7xl px-6 pt-24 pb-32">
         <Reveal>
-          <SectionTitle light ghost="Let's Chat" title="Ready to Fill Your Next Slot?" />
-          <p className="max-w-xl text-white/75 mb-8">
-            Create a free creator profile in minutes, or find the perfect audience for your next campaign.
-          </p>
-          <Link to="/register" className="inline-block bg-white text-navy-950 font-heading uppercase tracking-wider px-7 py-3 hover:bg-brand-500 hover:text-white transition">
-            Get Started
+          <SectionTitle light ghost="Let's Chat" title={cta.title} />
+          <p className="max-w-xl text-white/75 mb-8">{cta.text}</p>
+          <Link to={cta.to} className="inline-block bg-white text-navy-950 font-heading uppercase tracking-wider px-7 py-3 hover:bg-brand-500 hover:text-white transition">
+            {cta.label}
           </Link>
         </Reveal>
       </div>
@@ -221,38 +206,6 @@ function CtaStats() {
             </div>
           ))}
         </div>
-      </div>
-    </section>
-  )
-}
-
-function AdTiers() {
-  return (
-    <section className="mx-auto max-w-7xl px-6 pt-36 pb-24">
-      <SectionTitle ghost="Pricing" eyebrow="Example tiers" title="Choose an Ad Format" />
-      <div className="grid gap-6 md:grid-cols-3">
-        {adTiers.map((t, i) => (
-          <Reveal key={t.name} delay={i * 120}>
-            <div
-              className={`p-8 h-full border-b-4 transition hover:-translate-y-1 ${
-                t.hot
-                  ? 'bg-navy-900 text-white border-brand-500'
-                  : 'bg-mist text-navy-950 border-brand-500/30 hover:border-brand-500'
-              }`}
-            >
-              <h3 className="text-2xl">{t.name}</h3>
-              <p className="font-heading text-5xl font-bold text-brand-500 my-4">{t.price}</p>
-              <ul className="space-y-2 text-sm opacity-80 mb-6">
-                {t.list.map((l) => (
-                  <li key={l}>— {l}</li>
-                ))}
-              </ul>
-              <Link to="/creators" className="font-heading uppercase tracking-wider text-brand-500 hover:underline">
-                Find a creator →
-              </Link>
-            </div>
-          </Reveal>
-        ))}
       </div>
     </section>
   )
@@ -323,21 +276,15 @@ function Blog() {
   )
 }
 
-export default function Landing() {
-  const { hash } = useLocation()
-
-  useEffect(() => {
-    if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
-  }, [hash])
-
+export default function Home() {
   return (
     <>
       <Hero />
       <HowItWorks />
       <About />
-      <Creators />
+      <TopCreators />
       <CtaStats />
-      <AdTiers />
+      <AdFormats />
       <Testimonials />
       <Blog />
     </>
