@@ -87,4 +87,3 @@ export const mockBookings = [
 ]
 
 export default mockBookings
-

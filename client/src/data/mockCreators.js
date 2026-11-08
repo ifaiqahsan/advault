@@ -35,4 +35,3 @@ export const mockCreators = [
 ]
 
 export default mockCreators
-

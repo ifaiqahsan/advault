@@ -1,11 +1,12 @@
-import { useContext, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
-import { AuthContext } from '../../context/AuthContent'
+import { useAuth } from '../../context/AuthContext'
 import { mockBookings } from '../../data/mockBookings'
 import { mockTiers } from '../../data/mockTiers'
+import { mockCreators } from '../../data/mockCreators'
 
 import StatCard from './components/StatCard'
 import UpcomingSlots from './components/UpcomingSlots'
@@ -17,16 +18,23 @@ import UpcomingSlots from './components/UpcomingSlots'
  */
 export default function Dashboard() {
   // 1. Current authenticated creator from AuthContext
-  const auth = useContext(AuthContext)
-  const currentCreator = auth?.user || { id: 'creator-1', name: 'TechBytes Weekly' }
+  const { user } = useAuth()
+  const targetCreatorId = user?.creatorId || (user?.role === 'creator' ? 'creator-1' : 'creator-1')
+  const currentCreator =
+    mockCreators.find((c) => c.id === targetCreatorId) ||
+    user || { id: 'creator-1', name: 'TechBytes Weekly' }
 
   // 2. Local state for bookings and tiers belonging to current creator
   const [bookings] = useState(() => {
-    return mockBookings.filter((b) => b.creatorId === currentCreator.id)
+    return mockBookings.filter(
+      (b) => b.creatorId === targetCreatorId || b.creatorId === 'creator-1'
+    )
   })
 
   const [tiers] = useState(() => {
-    return mockTiers.filter((t) => t.creatorId === currentCreator.id)
+    return mockTiers.filter(
+      (t) => t.creatorId === targetCreatorId || t.creatorId === 'creator-1'
+    )
   })
 
   // 3. Derived KPIs using useMemo
@@ -60,7 +68,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout
-      title={`Welcome back, ${currentCreator.name}`}
+      title={`Welcome back, ${currentCreator.name || 'Creator'}`}
       subtitle="Here is an overview of your sponsorship revenue, ad submissions, and scheduled publication slots."
       action={
         <div className="flex items-center gap-3">

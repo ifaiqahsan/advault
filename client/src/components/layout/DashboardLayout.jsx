@@ -1,12 +1,11 @@
 import { NavLink, Link } from 'react-router-dom'
-import { useContext } from 'react'
-import { AuthContext } from '../../context/AuthContent'
+import { useAuth } from '../../context/AuthContext'
 import TopBar from './TopBar'
 import Footer from './Footer'
 
 export default function DashboardLayout({ children, title, subtitle, action }) {
-  const auth = useContext(AuthContext)
-  const creator = auth?.user || {
+  const { user } = useAuth()
+  const creator = user || {
     name: 'TechBytes Weekly',
     type: 'Newsletter',
   }
@@ -107,4 +106,3 @@ export default function DashboardLayout({ children, title, subtitle, action }) {
     </div>
   )
 }
-
