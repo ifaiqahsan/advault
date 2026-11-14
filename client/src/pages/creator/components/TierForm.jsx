@@ -2,198 +2,68 @@ import { useState } from 'react'
 import Input from '../../../components/ui/Input'
 import Button from '../../../components/ui/Button'
 
-/**
- * TierForm Component
- * Used inside a Modal for both creating and editing sponsorship tiers.
- *
- * Props:
- * - initialData: existing tier object (when editing) or null (when creating)
- * - onSubmit: function(formData) invoked when validation passes
- * - onCancel: function() invoked to dismiss the form
- */
 export default function TierForm({ initialData, onSubmit, onCancel }) {
-  // Local form state initialized from initialData or defaults
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: initialData?.name || '',
     price: initialData?.price !== undefined ? String(initialData.price) : '',
     wordLimit: initialData?.wordLimit !== undefined ? String(initialData.wordLimit) : '',
     imageSize: initialData?.imageSize || '',
+    slotsOpen: initialData?.slotsOpen !== undefined ? String(initialData.slotsOpen) : '5',
     description: initialData?.description || '',
-    perksString: initialData?.perks ? initialData.perks.join(', ') : '',
+    perks: initialData?.perks ? initialData.perks.join(', ') : '',
   })
-
-  // State to hold field-level error messages
   const [errors, setErrors] = useState({})
 
-  // Handle generic text/number input changes and clear the field's error
-  const handleChange = (e) => {
+  const change = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-
-    // Clear error for the current field as the user types
-    if (errors[name]) {
-      setErrors((prev) => {
-        const next = { ...prev }
-        delete next[name]
-        return next
-      })
-    }
+    setForm((p) => ({ ...p, [name]: value }))
+    if (errors[name]) setErrors((p) => ({ ...p, [name]: '' }))
   }
 
-  // Validate form fields according to business rules
   const validate = () => {
-    const newErrors = {}
-
-    // Name is required
-    if (!formData.name.trim()) {
-      newErrors.name = 'Tier name is required.'
-    }
-
-    // Price must be a positive number greater than 0
-    const priceNum = parseFloat(formData.price)
-    if (!formData.price.trim()) {
-      newErrors.price = 'Price is required.'
-    } else if (isNaN(priceNum) || priceNum <= 0) {
-      newErrors.price = 'Price must be a valid amount greater than $0.'
-    }
-
-    // Word limit must be a positive whole integer
-    const wordLimitNum = Number(formData.wordLimit)
-    if (!formData.wordLimit.trim()) {
-      newErrors.wordLimit = 'Word limit is required.'
-    } else if (
-      isNaN(wordLimitNum) ||
-      wordLimitNum <= 0 ||
-      !Number.isInteger(wordLimitNum)
-    ) {
-      newErrors.wordLimit = 'Word limit must be a positive whole number.'
-    }
-
-    // Image size specification is required
-    if (!formData.imageSize.trim()) {
-      newErrors.imageSize = 'Image size specification is required (e.g. 1200x628 px or None).'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    const e = {}
+    const price = parseFloat(form.price)
+    const words = Number(form.wordLimit)
+    const slots = Number(form.slotsOpen)
+    if (!form.name.trim()) e.name = 'Tier name is required.'
+    if (!form.price.trim() || isNaN(price) || price <= 0) e.price = 'Enter a price above $0.'
+    if (!form.wordLimit.trim() || !Number.isInteger(words) || words <= 0) e.wordLimit = 'Enter a whole number of words.'
+    if (!form.imageSize.trim()) e.imageSize = 'Enter a size like 1200x628 px, or None for text only.'
+    if (!Number.isInteger(slots) || slots < 0) e.slotsOpen = 'Enter 0 or more open slots.'
+    setErrors(e)
+    return Object.keys(e).length === 0
   }
 
-  // Form submission handler
-  const handleSubmit = (e) => {
+  const submit = (e) => {
     e.preventDefault()
-
-    if (!validate()) {
-      return
-    }
-
-    // Convert comma-separated perks string into clean array
-    const perks = formData.perksString
-      ? formData.perksString
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : []
-
-    // Construct cleaned payload
-    const submissionData = {
+    if (!validate()) return
+    onSubmit({
       ...(initialData?.id ? { id: initialData.id } : {}),
-      name: formData.name.trim(),
-      price: parseFloat(formData.price),
-      wordLimit: parseInt(formData.wordLimit, 10),
-      imageSize: formData.imageSize.trim(),
-      description: formData.description.trim(),
-      perks,
-    }
-
-    onSubmit(submissionData)
+      name: form.name.trim(),
+      price: parseFloat(form.price),
+      wordLimit: parseInt(form.wordLimit, 10),
+      imageSize: form.imageSize.trim(),
+      slotsOpen: parseInt(form.slotsOpen, 10),
+      description: form.description.trim(),
+      perks: form.perks.split(',').map((p) => p.trim()).filter(Boolean),
+    })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Tier Name */}
-      <Input
-        label="Tier Name"
-        name="name"
-        value={formData.name}
-        onChange={handleChange}
-        placeholder="e.g. Primary Header Sponsor"
-        error={errors.name}
-        required
-      />
-
-      {/* Grid: Price and Word Limit */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="Price ($ USD)"
-          name="price"
-          type="number"
-          min="1"
-          step="any"
-          value={formData.price}
-          onChange={handleChange}
-          placeholder="e.g. 450"
-          error={errors.price}
-          required
-        />
-
-        <Input
-          label="Word Limit (words)"
-          name="wordLimit"
-          type="number"
-          min="1"
-          step="1"
-          value={formData.wordLimit}
-          onChange={handleChange}
-          placeholder="e.g. 120"
-          error={errors.wordLimit}
-          required
-        />
+    <form onSubmit={submit} className="space-y-4" noValidate>
+      <Input label="Tier name" name="name" required placeholder="Primary Header Sponsor" value={form.name} onChange={change} error={errors.name} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Input label="Price (USD)" name="price" type="number" min="1" step="any" required value={form.price} onChange={change} error={errors.price} />
+        <Input label="Word limit" name="wordLimit" type="number" min="1" required value={form.wordLimit} onChange={change} error={errors.wordLimit} />
+        <Input label="Open slots" name="slotsOpen" type="number" min="0" required value={form.slotsOpen} onChange={change} error={errors.slotsOpen} />
       </div>
-
-      {/* Image Size Specifications */}
-      <Input
-        label="Image Specification"
-        name="imageSize"
-        value={formData.imageSize}
-        onChange={handleChange}
-        placeholder="e.g. 1200x628 px (PNG/JPG) or None"
-        error={errors.imageSize}
-        helperText="Specify dimensions or enter 'None' if text-only."
-        required
-      />
-
-      {/* Tier Description */}
-      <Input
-        label="Placement Description"
-        name="description"
-        as="textarea"
-        rows={3}
-        value={formData.description}
-        onChange={handleChange}
-        placeholder="Explain where this ad appears in your media..."
-        helperText="Brief summary of where sponsor copy will be featured."
-      />
-
-      {/* Perks / Deliverables */}
-      <Input
-        label="Perks / Deliverables (comma-separated)"
-        name="perksString"
-        value={formData.perksString}
-        onChange={handleChange}
-        placeholder="e.g. Top banner, Social shoutout, Click tracking"
-        helperText="Separate multiple deliverables with a comma."
-      />
-
-      {/* Modal Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-line mt-6">
-        <Button variant="outline" size="md" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="primary" size="md" type="submit">
-          {initialData ? 'Update Tier' : 'Create Tier'}
-        </Button>
+      <Input label="Image specification" name="imageSize" required placeholder="1200x628 px (PNG/JPG) or None" helperText="Enter None for text-only placements." value={form.imageSize} onChange={change} error={errors.imageSize} />
+      <Input label="Placement description" name="description" as="textarea" rows={3} placeholder="Where does the ad appear?" value={form.description} onChange={change} />
+      <Input label="Perks (comma separated)" name="perks" placeholder="Top banner, Social shoutout" value={form.perks} onChange={change} />
+      <div className="flex justify-end gap-3 pt-4 border-t border-line">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="submit">{initialData ? 'Update tier' : 'Create tier'}</Button>
       </div>
     </form>
   )
 }
-

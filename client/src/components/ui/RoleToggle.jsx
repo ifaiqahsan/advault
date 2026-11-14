@@ -11,10 +11,8 @@ export default function RoleToggle({ value, onChange }) {
           key={r.value}
           type="button"
           onClick={() => onChange(r.value)}
-          className={`p-4 text-left border-2 transition ${
-            value === r.value
-              ? 'border-brand-500 bg-brand-500/5'
-              : 'border-line hover:border-brand-500/50'
+          className={`p-4 text-left border-2 transition-all duration-200 ${
+            value === r.value ? 'border-brand-500 bg-brand-50 -translate-y-0.5 shadow-md' : 'border-line hover:border-brand-500/50'
           }`}
         >
           <p className="font-heading text-xl uppercase text-navy-950">{r.label}</p>

@@ -1,8 +1,20 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 export default function Footer() {
+  const [email, setEmail] = useState('')
+  const [done, setDone] = useState(false)
+
+  const subscribe = (e) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setDone(true)
+    setEmail('')
+    setTimeout(() => setDone(false), 3000)
+  }
+
   return (
-    <footer className="bg-navy-950 text-white/70">
+    <footer className="print:hidden bg-navy-950 text-white/70">
       <div className="hatch" />
       <div className="mx-auto max-w-7xl px-6 py-16 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
         <div>
@@ -18,10 +30,11 @@ export default function Footer() {
         <div>
           <h4 className="font-heading text-xl uppercase text-white mb-4">Quick Links</h4>
           <ul className="space-y-2 text-sm">
+            <li><Link to="/about" className="hover:text-brand-500 transition">About</Link></li>
             <li><Link to="/creators" className="hover:text-brand-500 transition">Browse Creators</Link></li>
-            <li><Link to="/my-bookings" className="hover:text-brand-500 transition">My Bookings</Link></li>
-            <li><Link to="/register" className="hover:text-brand-500 transition">Become a Creator</Link></li>
-            <li><Link to="/login" className="hover:text-brand-500 transition">Login</Link></li>
+            <li><Link to="/process" className="hover:text-brand-500 transition">How It Works</Link></li>
+            <li><Link to="/pricing" className="hover:text-brand-500 transition">Pricing</Link></li>
+            <li><Link to="/contact" className="hover:text-brand-500 transition">Contact Us</Link></li>
           </ul>
         </div>
 
@@ -30,22 +43,27 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             <li>Lahore, Pakistan</li>
             <li>support@advault.com</li>
-            <li>Phone: (555) 010-0123</li>
+            <li>Phone: (042) 61683419</li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-heading text-xl uppercase text-white mb-4">Newsletter</h4>
-          <div className="flex">
+          <form onSubmit={subscribe} className="flex">
             <input
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Email address"
-              className="w-full bg-navy-900 px-4 py-3 text-sm text-white placeholder-white/40 outline-none"
+              className="w-full bg-navy-900 px-4 py-3 text-sm text-white placeholder-white/40 outline-none focus:ring-1 focus:ring-brand-500 transition"
             />
             <button className="bg-brand-600 hover:bg-brand-500 text-white font-heading uppercase tracking-wider px-5 transition">
               Sign Up
             </button>
-          </div>
+          </form>
+          <p className={`mt-3 text-xs text-brand-500 transition-opacity duration-300 ${done ? 'opacity-100' : 'opacity-0'}`}>
+            Thanks, you are subscribed.
+          </p>
         </div>
       </div>
 

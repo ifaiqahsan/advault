@@ -4,6 +4,9 @@
   --color-navy-950: #0B0F3B;
   --color-navy-900: #141A5C;
   --color-navy-800: #1E2680;
+  --color-brand-50: #FFF3EC;
+  --color-brand-100: #FFE2D1;
+  --color-brand-300: #FFA97F;
   --color-brand-500: #FF5A1F;
   --color-brand-600: #E64A12;
   --color-paper: #FFFFFF;
@@ -11,12 +14,10 @@
   --color-line: #E3E7F1;
   --color-ink: #0B0F3B;
   --color-muted: #6B7390;
-
   --color-approved: #16A34A;
   --color-pending: #F5B301;
   --color-revision: #0EA5E9;
   --color-rejected: #DC2626;
-
   --font-heading: "Barlow Condensed", sans-serif;
   --font-sans: "Barlow", sans-serif;
 }
@@ -37,7 +38,7 @@
 }
 @keyframes fill-rise {
   from { background-size: 100% 0%; }
-  to   { background-size: 100% 35%; }
+  to { background-size: 100% 35%; }
 }
 
 .ghost { color: transparent; -webkit-text-stroke: 1px rgba(11, 15, 59, 0.1); }
@@ -51,14 +52,23 @@
   background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,0.25) 6px 8px);
 }
 
-.page-fade { animation: page-fade 0.5s ease both; }
-@keyframes page-fade {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: none; }
-}
+.lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+.lift:hover { transform: translateY(-6px); box-shadow: 0 18px 40px -18px rgba(11, 15, 59, 0.45); }
 
+.page-fade { animation: page-fade 0.5s ease both; }
 .slide-down { animation: slide-down 0.25s ease both; }
-@keyframes slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: none; }
+.fade-in { animation: fade-in 0.3s ease both; }
+.pop-in { animation: pop-in 0.25s ease both; }
+.toast-in { animation: toast-in 0.35s ease both; }
+.bar-grow { transform-origin: left; animation: bar-grow 0.9s ease both; }
+
+@keyframes page-fade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes slide-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

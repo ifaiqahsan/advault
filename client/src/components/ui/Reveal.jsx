@@ -5,6 +5,11 @@ export default function Reveal({ children, delay = 0, className = '' }) {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
+    const node = ref.current
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setShow(true)
+      return
+    }
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -12,18 +17,14 @@ export default function Reveal({ children, delay = 0, className = '' }) {
           io.disconnect()
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.12 }
     )
-    io.observe(ref.current)
+    io.observe(node)
     return () => io.disconnect()
   }, [])
 
   return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`reveal ${show ? 'show' : ''} ${className}`}
-    >
+    <div ref={ref} style={{ transitionDelay: `${delay}ms` }} className={`reveal ${show ? 'show' : ''} ${className}`}>
       {children}
     </div>
   )

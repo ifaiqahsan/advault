@@ -17,20 +17,27 @@ export default function AuthShell({ title, subtitle, children }) {
         </Link>
 
         <div className="relative">
-          <h2 className="text-6xl text-brand-500 leading-none">Sell Ads.</h2>
-          <h2 className="text-6xl outline-fill leading-none">Directly.</h2>
+          <h2 className="text-7xl text-brand-500 leading-none">Sell Ads.</h2>
+          <h2 className="text-7xl outline-fill leading-none">Directly.</h2>
           <p className="mt-6 max-w-sm text-white/70">
             One account for booking or selling sponsorships. No middlemen, no commission.
           </p>
         </div>
+
+        <div className="relative hatch" />
       </div>
 
-      <div className="flex items-center justify-center px-6 py-12">
+      <div className="flex items-center justify-center px-6 py-12 page-fade">
         <div className="w-full max-w-md">
-          <Link to="/" className="lg:hidden font-heading text-3xl font-bold text-navy-950">
-            AD<span className="text-brand-500">VAULT</span>
-          </Link>
-          <h1 className="text-5xl text-navy-950 mt-4">{title}</h1>
+          <div className="flex items-center justify-between mb-6">
+            <Link to="/" className="lg:hidden font-heading text-3xl font-bold text-navy-950">
+              AD<span className="text-brand-500">VAULT</span>
+            </Link>
+            <Link to="/" className="text-sm font-semibold text-muted hover:text-brand-500 transition ml-auto">
+              Back to home
+            </Link>
+          </div>
+          <h1 className="text-5xl text-navy-950">{title}</h1>
           <p className="text-muted mt-2 mb-8">{subtitle}</p>
           {children}
         </div>

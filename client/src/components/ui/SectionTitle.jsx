@@ -13,9 +13,7 @@ export default function SectionTitle({ ghost, title, eyebrow, light = false }) {
           <span className="w-8 h-0.5 bg-brand-500" /> {eyebrow}
         </p>
       )}
-      <h2 className={`relative text-4xl md:text-5xl ${light ? 'text-white' : 'text-navy-950'}`}>
-        {title}
-      </h2>
+      <h2 className={`relative text-4xl md:text-5xl ${light ? 'text-white' : 'text-navy-950'}`}>{title}</h2>
     </div>
   )
 }

@@ -4,24 +4,28 @@ import { useAuth } from '../../context/AuthContext'
 
 const guestLinks = [
   { to: '/', label: 'Home' },
+  { to: '/about', label: 'About' },
   { to: '/creators', label: 'Creators' },
   { to: '/process', label: 'Process' },
   { to: '/pricing', label: 'Pricing' },
+  { to: '/contact', label: 'Contact' },
 ]
 
 const sponsorLinks = [
   { to: '/', label: 'Home' },
   { to: '/creators', label: 'Creators' },
-  { to: '/my-bookings', label: 'Bookings' },
+  { to: '/sponsor/dashboard', label: 'Dashboard' },
+  { to: '/my-bookings', label: 'My Bookings' },
+  { to: '/contact', label: 'Contact' },
 ]
 
 const creatorLinks = [
   { to: '/', label: 'Home' },
   { to: '/creator/dashboard', label: 'Dashboard' },
-  { to: '/creator/profile', label: 'Profile' },
   { to: '/creator/tiers', label: 'Tiers' },
   { to: '/creator/availability', label: 'Calendar' },
   { to: '/creator/reviews', label: 'Reviews' },
+  { to: '/creator/analytics', label: 'Analytics' },
 ]
 
 const linksByRole = { sponsor: sponsorLinks, creator: creatorLinks }
@@ -50,7 +54,9 @@ export default function Navbar() {
       end={l.to === '/'}
       onClick={close}
       className={({ isActive }) =>
-        `text-[15px] font-medium transition ${isActive ? 'text-brand-500' : 'text-white hover:text-brand-500'}`
+        `relative text-[15px] font-medium transition after:absolute after:left-0 after:-bottom-1.5 after:h-0.5 after:bg-brand-500 after:transition-all after:duration-300 ${
+          isActive ? 'text-brand-500 after:w-full' : 'text-white hover:text-brand-500 after:w-0 hover:after:w-full'
+        }`
       }
     >
       {l.label}
@@ -72,9 +78,9 @@ export default function Navbar() {
   )
 
   return (
-    <header className="bg-navy-900 sticky top-0 z-40 shadow-lg">
-      <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
+    <header className="print:hidden bg-navy-900 sticky top-0 z-40 shadow-lg">
+      <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between gap-6">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
           <span className="grid place-items-center w-9 h-9 bg-brand-500 text-white font-heading text-2xl font-extrabold">A</span>
           <span className="font-heading text-3xl font-bold tracking-wide text-white">ADVAULT</span>
         </Link>
@@ -90,7 +96,7 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="lg:hidden bg-navy-950 border-t border-white/10 px-6 py-5 flex flex-col gap-4">
+        <div className="slide-down lg:hidden bg-navy-950 border-t border-white/10 px-6 py-5 flex flex-col gap-4">
           {tabs}
           <div className="flex flex-col gap-4 pt-4 border-t border-white/10">{actions}</div>
         </div>

@@ -5,11 +5,7 @@ import GuestCta from '../../components/sections/GuestCta'
 export default function Pricing() {
   return (
     <>
-      <PageHero
-        eyebrow="Transparent rates"
-        title="Pricing"
-        text="Every creator sets their own tiers. These are typical formats you will find."
-      />
+      <PageHero eyebrow="Transparent rates" title="Pricing" text="Every creator sets their own tiers. These are typical formats you will find." />
       <AdFormats />
       <GuestCta />
     </>

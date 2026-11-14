@@ -6,7 +6,7 @@ export default function GuestCta() {
   if (user) return null
 
   return (
-    <section className="bg-navy-800">
+    <section className="bg-navy-800 print:hidden">
       <div className="mx-auto max-w-7xl px-6 py-14 flex flex-wrap items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl md:text-4xl text-white">Ready to book or sell?</h2>
