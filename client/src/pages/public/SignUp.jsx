@@ -32,10 +32,10 @@ export default function SignUp() {
     return Object.keys(next).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
-    const result = register({ ...form, role })
+    const result = await register({ ...form, role })
     if (!result.ok) return setFormError(result.error)
     navigate(role === 'creator' ? '/creator/profile' : from || '/creators', { replace: true })
   }

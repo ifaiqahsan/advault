@@ -22,9 +22,9 @@ export default function LogIn() {
 
   if (user) return <Navigate to={destination(user.role, from)} replace />
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    const result = login(email, password, role)
+    const result = await login(email, password, role)
     if (!result.ok) {
       setInfo('')
       return setError(result.error)
@@ -52,7 +52,7 @@ export default function LogIn() {
           </button>
           <button
             type="button"
-            onClick={() => setInfo('Password reset arrives with the backend. Use the demo account for now.')}
+            onClick={() => setInfo('Password reset is not part of this project. Use the demo account or sign up again.')}
             className="text-brand-500 font-semibold hover:underline"
           >
             Forgot password?

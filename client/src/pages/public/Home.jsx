@@ -155,10 +155,11 @@ function TopCreators() {
 
 function CtaStats() {
   const { role } = useAuth()
-  const { creators, bookings, tiers } = useData()
+  const { creators, tiers, slotMap } = useData()
   const cta = ctaByRole[role] || ctaByRole.guest
   const average = tiers.length ? Math.round(tiers.reduce((s, t) => s + Number(t.price), 0) / tiers.length) : 0
-  const stats = [[String(creators.length), 'Creators'], [String(bookings.length), 'Slots Booked'], [money(average), 'Avg. Slot Price']]
+  const booked = creators.reduce((n, c) => n + Object.values(slotMap(c.id)).filter((v) => v === 'booked').length, 0)
+  const stats = [[String(creators.length), 'Creators'], [String(booked), 'Slots Booked'], [money(average), 'Avg. Slot Price']]
 
   return (
     <section className="relative bg-navy-800">

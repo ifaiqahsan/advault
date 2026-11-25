@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import PageHero from '../../components/ui/PageHero'
 import Stepper from '../../components/ui/Stepper'
 import Calendar from '../../components/ui/Calendar'
@@ -10,15 +12,64 @@ import EmptyState from '../../components/ui/EmptyState'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { formatDate, isUrl, money, todayKey, wordCount } from '../../utils/format'
+import { uploadImage } from '../../utils/api'
 
 const steps = ['Select date', 'Ad creative', 'Payment']
+
+// Stripe.js is loaded once with the publishable (public) test key
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null
+
+// Payment step: Stripe's secure card box. Card numbers go straight to Stripe, never to our server.
+function PaymentForm({ amount, onPay, onBack }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [name, setName] = useState('')
+  const [nameError, setNameError] = useState('')
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState('')
+
+  const submit = async (ev) => {
+    ev.preventDefault()
+    if (name.trim().length < 2) return setNameError('Enter the name on the card.')
+    if (!stripe || !elements) return
+    setPaying(true)
+    setPayError('')
+    try {
+      await onPay(stripe, elements.getElement(CardElement), name.trim())
+    } catch (err) {
+      setPayError(err.message)
+      setPaying(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-5" noValidate>
+      <div className="bg-brand-50 border border-brand-300 p-3 text-xs text-ink">
+        Stripe test mode. Use card <strong>4242 4242 4242 4242</strong>, any future date and any 3 digit code. Card <strong>4000 0000 0000 0002</strong> is always declined.
+      </div>
+      <Input label="Name on card" name="cardName" required autoComplete="cc-name" value={name} onChange={(e) => (setName(e.target.value), setNameError(''))} error={nameError} />
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-wider text-ink/80">Card details <span className="text-brand-500">*</span></label>
+        <div className="mt-1.5 border border-line bg-white px-4 py-3.5">
+          <CardElement options={{ hidePostalCode: true, style: { base: { fontSize: '15px', color: '#0f172a' } } }} />
+        </div>
+      </div>
+      {payError && <p className="text-sm text-rejected bg-red-50 border border-rejected/30 p-3 fade-in">{payError}</p>}
+      <div className="flex justify-between gap-3 pt-2">
+        <Button variant="outline" onClick={onBack} disabled={paying}>Back</Button>
+        <Button type="submit" size="lg" loading={paying} disabled={!stripe}>Authorize {money(amount)}</Button>
+      </div>
+    </form>
+  )
+}
 
 export default function Checkout() {
   const { tierId } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { tiers, creators, slotMap, createBooking } = useData()
+  const { tiers, creators, slotMap, startCheckout, createBooking } = useData()
 
   const tier = tiers.find((t) => t.id === tierId)
   const creator = creators.find((c) => c.id === tier?.creatorId)
@@ -29,10 +80,8 @@ export default function Checkout() {
   const [step, setStep] = useState(validStart ? 1 : 0)
   const [date, setDate] = useState(validStart ? startDate : '')
   const [creative, setCreative] = useState({ company: user?.name || '', headline: '', adCopy: '', targetUrl: '', adImageUrl: '' })
-  const [card, setCard] = useState({ name: '', number: '', expiry: '', cvc: '' })
   const [errors, setErrors] = useState({})
-  const [paying, setPaying] = useState(false)
-  const [payError, setPayError] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   if (!tier || !creator) {
     return (
@@ -51,29 +100,19 @@ export default function Checkout() {
     clear(field)
   }
 
-  const setCard$ = (field, format) => (e) => {
-    setCard({ ...card, [field]: format ? format(e.target.value) : e.target.value })
-    clear(field)
-  }
-
-  const formatNumber = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
-  const formatExpiry = (v) => {
-    const d = v.replace(/\D/g, '').slice(0, 4)
-    return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d
-  }
-  const formatCvc = (v) => v.replace(/\D/g, '').slice(0, 4)
-
   const onFile = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!/^image\/(png|jpe?g)$/.test(file.type)) return setErrors((p) => ({ ...p, adImageUrl: 'Upload a PNG or JPG image.' }))
     if (file.size > 1024 * 1024) return setErrors((p) => ({ ...p, adImageUrl: 'Image must be under 1 MB.' }))
-    const reader = new FileReader()
-    reader.onload = () => {
-      setCreative((p) => ({ ...p, adImageUrl: reader.result }))
-      clear('adImageUrl')
-    }
-    reader.readAsDataURL(file)
+    setUploading(true)
+    uploadImage(file) // multer saves it in server/uploads
+      .then((url) => {
+        setCreative((p) => ({ ...p, adImageUrl: url }))
+        clear('adImageUrl')
+      })
+      .catch((err) => setErrors((p) => ({ ...p, adImageUrl: err.message })))
+      .finally(() => setUploading(false))
   }
 
   const next = () => {
@@ -93,51 +132,25 @@ export default function Checkout() {
     if (Object.keys(e).length === 0) setStep(step + 1)
   }
 
-  const validateCard = () => {
-    const e = {}
-    const digits = card.number.replace(/\s/g, '')
-    const [mm, yy] = card.expiry.split('/').map(Number)
-    const now = new Date()
-    const curYY = now.getFullYear() % 100
-    if (card.name.trim().length < 2) e.name = 'Enter the name on the card.'
-    if (digits.length !== 16) e.number = 'Card number must have 16 digits.'
-    if (!mm || mm < 1 || mm > 12 || !yy || yy < curYY || (yy === curYY && mm < now.getMonth() + 1)) e.expiry = 'Enter a valid future expiry (MM/YY).'
-    if (card.cvc.length < 3) e.cvc = 'Enter the 3 or 4 digit code.'
-    setErrors(e)
-    return Object.keys(e).length === 0
-  }
-
-  const pay = (ev) => {
-    ev.preventDefault()
-    if (!validateCard()) return
-    if (slotMap(creator.id)[date]) {
-      setPayError('Someone just booked this date. Go back and choose another one.')
-      return
+  // 1) server validates and holds the money  2) Stripe confirms the card  3) server saves the booking
+  const pay = async (stripe, card, cardName) => {
+    const order = {
+      tierId: tier.id,
+      slotDate: date,
+      sponsorName: creative.company.trim(),
+      headline: creative.headline.trim(),
+      adCopy: creative.adCopy.trim(),
+      targetUrl: creative.targetUrl.trim(),
+      adImageUrl: creative.adImageUrl,
     }
-    setPaying(true)
-    setPayError('')
-    setTimeout(() => {
-      if (card.number.replace(/\s/g, '') === '4000000000000002') {
-        setPaying(false)
-        setPayError('The card was declined. This sandbox card always fails. Try 4242 4242 4242 4242.')
-        return
-      }
-      const booking = createBooking({
-        creatorId: creator.id,
-        sponsorId: user.sponsorId,
-        tierId: tier.id,
-        tierName: tier.name,
-        sponsorName: creative.company.trim(),
-        sponsorEmail: user.email,
-        slotDate: date,
-        amount: tier.price,
-        headline: creative.headline.trim(),
-        adCopy: creative.adCopy.trim(),
-        adImageUrl: creative.adImageUrl,
-        targetUrl: creative.targetUrl.trim(),
-      })
-      navigate(`/receipt/${booking.id}`, { replace: true })
-    }, 1400)
+    const { clientSecret, paymentIntentId } = await startCheckout(order)
+    const result = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card, billing_details: { name: cardName, email: user.email } },
+    })
+    if (result.error) throw new Error(result.error.message)
+    if (result.paymentIntent.status !== 'requires_capture') throw new Error('The card could not be authorized. Try again.')
+    const booking = await createBooking({ ...order, paymentIntentId })
+    navigate(`/receipt/${booking.id}`, { replace: true })
   }
 
   return (
@@ -183,7 +196,9 @@ export default function Checkout() {
                     <div>
                       <label className="text-xs font-semibold uppercase tracking-wider text-ink/80">Banner image <span className="text-brand-500">*</span></label>
                       <label className="mt-1.5 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-line hover:border-brand-500 bg-mist p-6 cursor-pointer transition">
-                        {creative.adImageUrl ? (
+                        {uploading ? (
+                          <span className="text-sm text-muted">Uploading...</span>
+                        ) : creative.adImageUrl ? (
                           <img src={creative.adImageUrl} alt="Banner preview" className="max-h-40 pop-in" />
                         ) : (
                           <span className="text-sm text-muted">Click to upload a PNG or JPG (max 1 MB)</span>
@@ -198,23 +213,14 @@ export default function Checkout() {
             )}
 
             {step === 2 && (
-              <Card title="Sandbox payment" subtitle="Test mode. No real money moves.">
-                <form onSubmit={pay} className="space-y-5" noValidate>
-                  <div className="bg-brand-50 border border-brand-300 p-3 text-xs text-ink">
-                    Use test card <strong>4242 4242 4242 4242</strong>, any future date and any 3 digit code. Card <strong>4000 0000 0000 0002</strong> is always declined.
-                  </div>
-                  <Input label="Name on card" name="cardName" required autoComplete="cc-name" value={card.name} onChange={setCard$('name')} error={errors.name} />
-                  <Input label="Card number" name="cardNumber" required inputMode="numeric" autoComplete="cc-number" placeholder="4242 4242 4242 4242" value={card.number} onChange={setCard$('number', formatNumber)} error={errors.number} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="Expiry" name="expiry" required placeholder="MM/YY" autoComplete="cc-exp" value={card.expiry} onChange={setCard$('expiry', formatExpiry)} error={errors.expiry} />
-                    <Input label="CVC" name="cvc" required inputMode="numeric" autoComplete="cc-csc" value={card.cvc} onChange={setCard$('cvc', formatCvc)} error={errors.cvc} />
-                  </div>
-                  {payError && <p className="text-sm text-rejected bg-red-50 border border-rejected/30 p-3 fade-in">{payError}</p>}
-                  <div className="flex justify-between gap-3 pt-2">
-                    <Button variant="outline" onClick={() => setStep(1)} disabled={paying}>Back</Button>
-                    <Button type="submit" size="lg" loading={paying}>Authorize {money(tier.price)}</Button>
-                  </div>
-                </form>
+              <Card title="Secure payment" subtitle="Stripe test mode. Your card is only authorized now and charged after approval.">
+                {stripePromise ? (
+                  <Elements stripe={stripePromise}>
+                    <PaymentForm amount={tier.price} onPay={pay} onBack={() => setStep(1)} />
+                  </Elements>
+                ) : (
+                  <p className="text-sm text-rejected">Stripe key missing. Add VITE_STRIPE_PUBLISHABLE_KEY to client/.env and restart the client.</p>
+                )}
               </Card>
             )}
           </div>
@@ -222,7 +228,7 @@ export default function Checkout() {
           {step < 2 && (
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => (step === 0 ? navigate(`/creators/${creator.id}`) : setStep(step - 1))}>Back</Button>
-              <Button size="lg" onClick={next}>Continue</Button>
+              <Button size="lg" onClick={next} disabled={uploading}>Continue</Button>
             </div>
           )}
         </div>

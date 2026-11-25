@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { isUrl, wordCount } from '../../utils/format'
+import { uploadImage } from '../../utils/api'
 
 export default function Submit() {
   const { bookingId } = useParams()
@@ -41,12 +42,12 @@ export default function Submit() {
     if (!file) return
     if (!/^image\/(png|jpe?g)$/.test(file.type)) return setErrors({ ...errors, adImageUrl: 'Upload a PNG or JPG image.' })
     if (file.size > 1024 * 1024) return setErrors({ ...errors, adImageUrl: 'Image must be under 1 MB.' })
-    const reader = new FileReader()
-    reader.onload = () => {
-      setForm((p) => ({ ...p, adImageUrl: reader.result }))
-      setErrors((p) => ({ ...p, adImageUrl: '' }))
-    }
-    reader.readAsDataURL(file)
+    uploadImage(file)
+      .then((url) => {
+        setForm((p) => ({ ...p, adImageUrl: url }))
+        setErrors((p) => ({ ...p, adImageUrl: '' }))
+      })
+      .catch((err) => setErrors((p) => ({ ...p, adImageUrl: err.message })))
   }
 
   const submit = (e) => {
@@ -60,15 +61,14 @@ export default function Submit() {
     setErrors(next)
     if (Object.keys(next).length) return
     setSaving(true)
-    setTimeout(() => {
-      resubmit(booking.id, {
-        headline: form.headline.trim(),
-        adCopy: form.adCopy.trim(),
-        targetUrl: form.targetUrl.trim(),
-        adImageUrl: form.adImageUrl,
-      })
-      navigate('/my-bookings', { replace: true })
-    }, 700)
+    resubmit(booking.id, {
+      headline: form.headline.trim(),
+      adCopy: form.adCopy.trim(),
+      targetUrl: form.targetUrl.trim(),
+      adImageUrl: form.adImageUrl,
+    })
+      .then(() => navigate('/my-bookings', { replace: true }))
+      .catch(() => setSaving(false))
   }
 
   return (
