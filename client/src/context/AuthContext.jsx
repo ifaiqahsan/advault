@@ -1,60 +1,64 @@
-import { createContext, useContext, useState } from 'react'
-import { seedUsers } from '../data/mockUsers'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { api, getToken, setToken } from '../utils/api'
 
 const AuthContext = createContext(null)
-
-const USERS_KEY = 'advault_users'
 const SESSION_KEY = 'advault_user'
 
-const read = (key, fallback) => {
+const readSession = () => {
   try {
-    return JSON.parse(localStorage.getItem(key)) ?? fallback
+    return getToken() ? JSON.parse(localStorage.getItem(SESSION_KEY)) : null
   } catch {
-    return fallback
+    return null
   }
-}
-
-const withIds = (u) => {
-  if (!u) return u
-  if (u.role === 'creator' && !u.creatorId) return { ...u, creatorId: `creator-${u.id}` }
-  if (u.role === 'sponsor' && !u.sponsorId) return { ...u, sponsorId: `sponsor-${u.id}` }
-  return u
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => withIds(read(SESSION_KEY, null)))
+  const [user, setUser] = useState(readSession)
 
-  const getUsers = () => read(USERS_KEY, seedUsers)
-
-  const startSession = (account) => {
-    const safe = withIds({ ...account })
-    delete safe.password
-    setUser(safe)
-    localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
-    return safe
-  }
-
-  const login = (email, password, role) => {
-    const account = getUsers().find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
-    if (!account || account.password !== password) return { ok: false, error: 'Incorrect email or password.' }
-    if (account.role !== role) return { ok: false, error: `This email is registered as a ${account.role}. Switch the role above.` }
-    return { ok: true, user: startSession(account) }
-  }
-
-  const register = ({ name, email, password, role }) => {
-    const users = getUsers()
-    if (users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
-      return { ok: false, error: 'An account with this email already exists.' }
-    }
-    const id = Date.now()
-    const account = withIds({ id, name: name.trim(), email: email.trim(), password, role })
-    localStorage.setItem(USERS_KEY, JSON.stringify([...users, account]))
-    return { ok: true, user: startSession(account) }
+  const saveSession = (token, account) => {
+    setToken(token)
+    localStorage.setItem(SESSION_KEY, JSON.stringify(account))
+    setUser(account)
   }
 
   const logout = () => {
-    setUser(null)
+    setToken(null)
     localStorage.removeItem(SESSION_KEY)
+    setUser(null)
+  }
+
+  // On page load, ask the server if the saved token is still valid
+  useEffect(() => {
+    if (!getToken()) return
+    api('/auth/me')
+      .then(({ user: fresh }) => {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(fresh))
+        setUser(fresh)
+      })
+      .catch((err) => {
+        if (err.status === 401 || err.status === 404) logout() // token expired or user deleted
+      })
+  }, [])
+
+  const login = async (email, password, role) => {
+    try {
+      const { token, user: account } = await api('/auth/login', { method: 'POST', body: { email, password } })
+      if (account.role !== role) return { ok: false, error: `This email is registered as a ${account.role}. Switch the role above.` }
+      saveSession(token, account)
+      return { ok: true, user: account }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
+  }
+
+  const register = async ({ name, email, password, role }) => {
+    try {
+      const { token, user: account } = await api('/auth/register', { method: 'POST', body: { name, email, password, role } })
+      saveSession(token, account)
+      return { ok: true, user: account }
+    } catch (err) {
+      return { ok: false, error: err.message }
+    }
   }
 
   const updateProfile = (updates) => {

@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom'
 import Reveal from '../ui/Reveal'
 import SectionTitle from '../ui/SectionTitle'
-import { mockTiers } from '../../data/mockTiers'
+import { useData } from '../../context/DataContext'
 import { money } from '../../utils/format'
 
-const formats = mockTiers
-  .filter((t) => t.creatorId === 'creator-1')
-  .sort((a, b) => a.price - b.price)
-
 export default function AdFormats() {
+  const { creators, tiers } = useData()
+  // Example tiers: the first creator's 3 cheapest tiers, loaded from the API
+  const formats = tiers
+    .filter((t) => t.creatorId === creators[0]?.id)
+    .sort((a, b) => a.price - b.price)
+    .slice(0, 3)
+
   return (
     <section className="mx-auto max-w-7xl px-6 py-24">
       <SectionTitle ghost="Pricing" eyebrow="Example tiers" title="Choose an Ad Format" />

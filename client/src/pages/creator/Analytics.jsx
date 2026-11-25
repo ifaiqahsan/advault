@@ -24,7 +24,7 @@ export default function Analytics() {
 
   const click = (b) => {
     trackClick(b.id)
-    show(`Logged a test click for ${b.sponsorName}.`, 'info')
+    show(`Opened the tracking link for ${b.sponsorName}. The count updates in a moment.`, 'info')
   }
 
   return (
@@ -58,14 +58,14 @@ export default function Analytics() {
             </ul>
           </Card>
 
-          <Card title="Placement details" subtitle="Use the test button to simulate a visitor clicking the sponsor link">
+          <Card title="Placement details" subtitle="Put the tracking link in your newsletter. Every visit is counted, then redirected to the sponsor.">
             <div className="overflow-x-auto -mx-6">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-line bg-mist/60 text-[11px] font-heading uppercase text-muted tracking-wider">
                     <th className="py-3 px-6">Sponsor</th>
                     <th className="py-3 px-6">Tier</th>
-                    <th className="py-3 px-6">Link</th>
+                    <th className="py-3 px-6">Tracking link</th>
                     <th className="py-3 px-6">Clicks</th>
                     <th className="py-3 px-6 text-right">Test</th>
                   </tr>
@@ -75,9 +75,9 @@ export default function Analytics() {
                     <tr key={b.id} className="hover:bg-brand-50/40 transition-colors">
                       <td className="py-3.5 px-6 font-semibold text-ink">{b.sponsorName}</td>
                       <td className="py-3.5 px-6 text-xs">{b.tierName}</td>
-                      <td className="py-3.5 px-6 text-xs text-brand-500 truncate max-w-[200px]">{b.targetUrl}</td>
+                      <td className="py-3.5 px-6 text-xs text-brand-500 truncate max-w-[200px]" title={b.targetUrl}>{`${window.location.origin}/api/track/${b.id}`}</td>
                       <td className="py-3.5 px-6 font-heading text-xl">{b.clicks || 0}</td>
-                      <td className="py-3.5 px-6 text-right"><Button size="sm" variant="outline" onClick={() => click(b)}>Log click</Button></td>
+                      <td className="py-3.5 px-6 text-right"><Button size="sm" variant="outline" onClick={() => click(b)}>Test link</Button></td>
                     </tr>
                   ))}
                 </tbody>

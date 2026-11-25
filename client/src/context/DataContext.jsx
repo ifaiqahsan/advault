@@ -1,168 +1,131 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { mockCreators } from '../data/mockCreators'
-import { mockTiers } from '../data/mockTiers'
-import { mockBookings } from '../data/mockBookings'
-import { money, formatDate, todayKey } from '../utils/format'
+import { useAuth } from './AuthContext'
+import { api, API_URL } from '../utils/api'
 
 const DataContext = createContext(null)
 
-const KEY = 'advault_data_v1'
-
-const seed = {
-  creators: mockCreators,
-  tiers: mockTiers,
-  bookings: mockBookings,
-  locked: { 'creator-1': ['2026-11-26', '2026-11-27'] },
-  notifications: [],
+// Public data for everyone, plus my bookings and emails when logged in
+async function fetchAll(userId) {
+  const mine = userId ? Promise.all([api('/bookings/mine'), api('/bookings/notifications')]) : [[], []]
+  const [c, t, s, [b, n]] = await Promise.all([api('/creators'), api('/tiers'), api('/availability'), mine])
+  return { c, t, s, b, n }
 }
 
-const load = () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY))
-    return saved ? { ...seed, ...saved } : seed
-  } catch {
-    return seed
-  }
-}
-
-const push = (list, mail) =>
-  [{ id: `mail-${Date.now()}-${list.length}`, at: new Date().toISOString(), ...mail }, ...list].slice(0, 60)
-
-const outcomes = {
-  approved: { pay: 'captured', mail: 'Your ad was approved and payment was captured' },
-  revision_requested: { pay: 'authorized', mail: 'Revision requested on your ad' },
-  rejected: { pay: 'released', mail: 'Your ad was declined and payment was released' },
+// Shows the server's error message, then re-throws so the page can stop too
+const fail = (err) => {
+  alert(err.message)
+  throw err
 }
 
 export function DataProvider({ children }) {
-  const [db, setDb] = useState(load)
+  const { user } = useAuth()
+  const userId = user?.id
+  const [loadedFor, setLoadedFor] = useState(undefined) // which user's data is loaded (null = guest)
+  const [creators, setCreators] = useState([])
+  const [tiers, setTiers] = useState([])
+  const [slots, setSlots] = useState({}) // { creatorId: { "YYYY-MM-DD": "locked" | "booked" } }
+  const [bookings, setBookings] = useState([]) // only MY bookings
+  const [notifications, setNotifications] = useState([])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(db))
-    } catch {
-      return
-    }
-  }, [db])
-
-  const upsertCreator = (creator) =>
-    setDb((p) => ({
-      ...p,
-      creators: p.creators.some((c) => c.id === creator.id)
-        ? p.creators.map((c) => (c.id === creator.id ? { ...c, ...creator } : c))
-        : [...p.creators, creator],
-    }))
-
-  const addTier = (creatorId, data) => {
-    const tier = { slotsOpen: 5, perks: [], ...data, id: `tier-${Date.now()}`, creatorId }
-    setDb((p) => ({ ...p, tiers: [tier, ...p.tiers] }))
-    return tier
+  const apply = ({ c, t, s, b, n }) => {
+    setCreators(c)
+    setTiers(t)
+    setSlots(s)
+    setBookings(b)
+    setNotifications(n)
   }
 
+  // Load everything on start, and again when someone logs in or out
+  useEffect(() => {
+    fetchAll(userId)
+      .then(apply)
+      .catch((err) => console.error(err.message))
+      .finally(() => setLoadedFor(userId ?? null))
+  }, [userId])
+
+  const reloadAll = () => fetchAll(userId).then(apply)
+
+  // ----- creator profile -----
+  const upsertCreator = (creator) =>
+    api('/creators/me', { method: 'PUT', body: creator })
+      .then((saved) => setCreators((p) => p.map((c) => (c.id === saved.id ? saved : c))))
+      .catch(fail)
+
+  // ----- tiers -----
+  const addTier = (creatorId, data) =>
+    api('/tiers', { method: 'POST', body: data })
+      .then((tier) => {
+        setTiers((p) => [tier, ...p])
+        return tier
+      })
+      .catch(fail)
+
   const updateTier = (id, data) =>
-    setDb((p) => ({ ...p, tiers: p.tiers.map((t) => (t.id === id ? { ...t, ...data } : t)) }))
+    api(`/tiers/${id}`, { method: 'PUT', body: data })
+      .then((tier) => setTiers((p) => p.map((t) => (t.id === id ? tier : t))))
+      .catch(fail)
 
-  const removeTier = (id) => setDb((p) => ({ ...p, tiers: p.tiers.filter((t) => t.id !== id) }))
+  const removeTier = (id) =>
+    api(`/tiers/${id}`, { method: 'DELETE' })
+      .then(() => setTiers((p) => p.filter((t) => t.id !== id)))
+      .catch(fail)
 
-  const createBooking = (data) => {
-    const booking = {
-      ...data,
-      id: `booking-${Date.now()}`,
-      status: 'pending',
-      paymentStatus: 'authorized',
-      feedbackNote: null,
-      clicks: 0,
-      submittedAt: todayKey(),
-    }
-    setDb((p) => {
-      const creator = p.creators.find((c) => c.id === data.creatorId)
-      let mails = push(p.notifications, {
-        to: data.sponsorEmail,
-        sponsorId: data.sponsorId,
-        bookingId: booking.id,
-        subject: `Receipt: ${money(data.amount)} authorized for ${data.tierName} on ${formatDate(data.slotDate)}`,
-      })
-      mails = push(mails, {
-        to: creator?.email || 'creator',
-        creatorId: data.creatorId,
-        bookingId: booking.id,
-        subject: `New ad submission from ${data.sponsorName} is waiting for review`,
-      })
-      return { ...p, bookings: [booking, ...p.bookings], notifications: mails }
-    })
+  // ----- booking + Stripe -----
+  // Step 1: server checks the order and creates a Stripe hold. Returns { clientSecret, paymentIntentId }
+  const startCheckout = (order) => api('/bookings/intent', { method: 'POST', body: order })
+
+  // Step 2: after Stripe confirmed the card, save the booking
+  const createBooking = async (data) => {
+    const booking = await api('/bookings/confirm', { method: 'POST', body: data })
+    await reloadAll()
     return booking
   }
 
   const reviewBooking = (id, status, note = null) =>
-    setDb((p) => {
-      const target = p.bookings.find((b) => b.id === id)
-      if (!target) return p
-      const outcome = outcomes[status]
-      return {
-        ...p,
-        bookings: p.bookings.map((b) =>
-          b.id === id ? { ...b, status, feedbackNote: note, paymentStatus: outcome.pay } : b
-        ),
-        notifications: push(p.notifications, {
-          to: target.sponsorEmail,
-          sponsorId: target.sponsorId,
-          bookingId: id,
-          subject: outcome.mail,
-        }),
-      }
-    })
+    api(`/bookings/${id}/review`, { method: 'PUT', body: { status, note: note || '' } })
+      .then(reloadAll)
+      .catch(fail)
 
   const resubmit = (id, creative) =>
-    setDb((p) => {
-      const target = p.bookings.find((b) => b.id === id)
-      if (!target) return p
-      return {
-        ...p,
-        bookings: p.bookings.map((b) =>
-          b.id === id ? { ...b, ...creative, status: 'pending', feedbackNote: null } : b
-        ),
-        notifications: push(p.notifications, {
-          to: 'creator',
-          creatorId: target.creatorId,
-          bookingId: id,
-          subject: `${target.sponsorName} submitted a revised creative`,
-        }),
-      }
-    })
+    api(`/bookings/${id}/resubmit`, { method: 'PUT', body: creative })
+      .then(reloadAll)
+      .catch(fail)
 
+  // ----- calendar -----
   const toggleLock = (creatorId, date) =>
-    setDb((p) => {
-      const list = p.locked[creatorId] || []
-      const next = list.includes(date) ? list.filter((d) => d !== date) : [...list, date]
-      return { ...p, locked: { ...p.locked, [creatorId]: next } }
-    })
+    api('/availability/lock', { method: 'PUT', body: { date } })
+      .then((map) => setSlots((p) => ({ ...p, [creatorId]: map })))
+      .catch(fail)
 
-  const openAll = (creatorId) => setDb((p) => ({ ...p, locked: { ...p.locked, [creatorId]: [] } }))
+  const openAll = (creatorId) =>
+    api('/availability/open-all', { method: 'PUT' })
+      .then((map) => setSlots((p) => ({ ...p, [creatorId]: map })))
+      .catch(fail)
 
-  const trackClick = (id) =>
-    setDb((p) => ({ ...p, bookings: p.bookings.map((b) => (b.id === id ? { ...b, clicks: (b.clicks || 0) + 1 } : b)) }))
+  const slotMap = (creatorId) => slots[creatorId] || {}
 
-  const slotMap = (creatorId) => {
-    const map = {}
-    ;(db.locked[creatorId] || []).forEach((d) => {
-      map[d] = 'locked'
-    })
-    db.bookings.forEach((b) => {
-      if (b.creatorId === creatorId && b.status !== 'rejected') map[b.slotDate] = 'booked'
-    })
-    return map
+  // ----- click tracking: open the real tracking link, then refresh the counts -----
+  const trackClick = (id) => {
+    window.open(`${API_URL}/track/${id}`, '_blank', 'noopener')
+    setTimeout(() => reloadAll().catch(() => {}), 1500)
   }
 
-  const resetData = () => setDb(seed)
+  if (loadedFor !== (userId ?? null)) {
+    return <div className="min-h-screen grid place-items-center text-muted font-heading uppercase tracking-wider">Loading AdVault...</div>
+  }
 
   return (
     <DataContext.Provider
       value={{
-        ...db,
+        creators,
+        tiers,
+        bookings: userId ? bookings : [],
+        notifications: userId ? notifications : [],
         upsertCreator,
         addTier,
         updateTier,
         removeTier,
+        startCheckout,
         createBooking,
         reviewBooking,
         resubmit,
@@ -170,7 +133,7 @@ export function DataProvider({ children }) {
         openAll,
         trackClick,
         slotMap,
-        resetData,
+        reload: reloadAll,
       }}
     >
       {children}
